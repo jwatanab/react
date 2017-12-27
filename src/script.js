@@ -1,45 +1,103 @@
 import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
-import Header from './component/Header'
-import { css } from 'aphrodite'
-import { Title } from './component/Styles'
+import request from 'superagent'
 
-
-class Hello extends Component {
+class Form extends Component {
     constructor(props) {
         super(props)
-        this.state = { title: '' }
+        this.state = {
+            name: '',
+            body: ''
+        }
     }
-    doClick(e) {
-        window.alert('これからマスターしていくぞ！')
-        console.log('success')
+    doName(e) {
+        this.setState({ name: e.target.value })
     }
-    componentWillMount() {
-        this.setState({ title: 'きたー！' })
+    doBody(e) {
+        this.setState({ body: e.target.value })
+    }
+    post(e) {
+        request
+            .get('/api/write')
+            .query({
+                name: this.state.name,
+                body: this.state.body
+            })
+            .end((err, data) => {
+                if (err) return
+                this.setState({ body: '' })
+                /*  後に親コンポーネントにロード処理を渡される  */
+                if (this.props.onPost) {
+                    this.props.onPost()
+                }
+            })
     }
     render() {
-        console.log(this, window)
         return (
-            <div>
-                <Header />
-                <h1 className={css(Title.h1)} onClick={e => this.doClick(e)}>{this.state.title}</h1>
-                <p>{this.props.message}</p>
-                <a href='more.html'>リンク</a>
+            <div style={styles.form}>
+                名前:<br />
+                <input value={this.state.name} onChange={e => this.doName(e)} /><br />
+                本文:<br />
+                <input value={this.state.body} size='60' onChange={e => this.doBody(e)} /><br />
+                <button onClick={e => this.post()}>投稿</button>
             </div>
         )
     }
 }
 
-Hello.defaultProps = { message: 'ようやくできたよー！' }
+class App extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = { items: [] }
+    }
+    componentWillMount() {
+        this.loadLogs()
+    }
+    loadLogs() {
+        console.log('start')
+        request
+            .get('/api/getItems')
+            .end((err, data) => {
+                if (err) {
+                    console.log(err)
+                    return
+                }
+                this.setState({ items: data.body.logs })
+            })
+    }
+    render() {
+        const html = this.state.items.map(e => {
+            return <li key={e._id}>{e.name} - {e.body}</li>
+        })
+        return (
+            <div>
+                <h1 style={styles.h1}>掲示板だよー！</h1>
+                <Form onPost={e => this.loadLogs()} />
+                <p style={styles.right}><button onClick={e => this.loadLogs()}>再読み込み</button></p>
+                <ul>{html}</ul>
+            </div>
+        )
+    }
+}
 
-Header.defaultProps = {
-    ary: {
-        item1: 'こんばんわ',
-        item2: 'おはよごずあいます'
+const styles = {
+    h1: {
+        backgroundColor: 'blue',
+        color: 'white',
+        fontSize: 24,
+        padding: 12
+    },
+    form: {
+        padding: 12,
+        border: '1px solid sliver',
+        backgroundColor: '#f0f0f0'
+    },
+    right: {
+        textAlign: 'right'
     }
 }
 
 ReactDOM.render(
-    <Hello />,
+    <App />,
     document.getElementById('root')
 )
